@@ -47,6 +47,9 @@ class DremioCompiler(compiler.SQLCompiler):
 
     def visit_table(self, table, asfrom=False, **kwargs):
 
+        # Debug log
+        print('Visiting table:', table)
+
         if asfrom:
             if table.schema is not None and table.schema != "":
                 fixed_schema = ".".join(["\"" + i.replace('"', '') + "\"" for i in table.schema.split(".")])
@@ -60,10 +63,12 @@ class DremioCompiler(compiler.SQLCompiler):
     def visit_tablesample(self, tablesample, asfrom=False, **kw):
         print(tablesample)
 
-
     def visit_function(self, func, **kw):
         # SQLAlchemy stores function names in uppercase inside the object
         name = func.name.upper()
+
+        # Debug log
+        print('Visiting function:', name)
 
         if name == 'DATEDIFF':
             clauses = list(func.clauses)
