@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import schema, types, pool
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.sql import compiler
@@ -47,6 +49,9 @@ class DremioCompiler(compiler.SQLCompiler):
 
     def visit_table(self, table, asfrom=False, **kwargs):
 
+        # Debug log
+        logging.error('Visiting table:', table)
+
         if asfrom:
             if table.schema is not None and table.schema != "":
                 fixed_schema = ".".join(["\"" + i.replace('"', '') + "\"" for i in table.schema.split(".")])
@@ -59,6 +64,31 @@ class DremioCompiler(compiler.SQLCompiler):
 
     def visit_tablesample(self, tablesample, asfrom=False, **kw):
         print(tablesample)
+
+    def visit_function(self, func, **kw):
+        # SQLAlchemy stores function names in uppercase inside the object
+        name = func.name.upper()
+
+        # Debug log
+        logging.error('Visiting function:', name)
+
+        if name == 'DATEDIFF':
+            clauses = list(func.clauses)
+            if len(clauses) == 2:
+                # Force DATE_SUB(date, days)
+                return "DATE_SUB(%s, %s)" % (
+                    self.process(clauses[0], **kw),
+                    self.process(clauses[1], **kw)
+                )
+
+        if name == 'DATE_ADD':
+            clauses = list(func.clauses)
+            return "DATE_ADD(%s, %s)" % (
+                self.process(clauses[0], **kw),
+                self.process(clauses[1], **kw)
+            )
+
+        return super().visit_function(func, **kw)
 
 
 class DremioDDLCompiler(compiler.DDLCompiler):
@@ -176,7 +206,7 @@ class DremioDialect_flight(default.DefaultDialect):
         def add_property(lc_query_dict, property_name, connectors):
             if property_name.lower() in lc_query_dict:
                 connectors.append('{0}={1}'.format(property_name, lc_query_dict[property_name.lower()]))
-        
+
         add_property(lc_query_dict, 'UseEncryption', connectors)
         add_property(lc_query_dict, 'DisableCertificateVerification', connectors)
         add_property(lc_query_dict, 'TrustedCerts', connectors)
@@ -255,4 +285,3 @@ class DremioDialect_flight(default.DefaultDialect):
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
-        
