@@ -61,6 +61,29 @@ class DremioCompiler(compiler.SQLCompiler):
         print(tablesample)
 
 
+    def visit_function(self, func, **kw):
+        # SQLAlchemy stores function names in uppercase inside the object
+        name = func.name.upper()
+
+        if name == 'DATEDIFF':
+            clauses = list(func.clauses)
+            if len(clauses) == 2:
+                # Force DATE_SUB(date, days)
+                return "DATE_SUB(%s, %s)" % (
+                    self.process(clauses[0], **kw),
+                    self.process(clauses[1], **kw)
+                )
+
+        if name == 'DATE_ADD':
+            clauses = list(func.clauses)
+            return "DATE_ADD(%s, %s)" % (
+                self.process(clauses[0], **kw),
+                self.process(clauses[1], **kw)
+            )
+
+        return super().visit_function(func, **kw)
+
+
 class DremioDDLCompiler(compiler.DDLCompiler):
     def get_column_specification(self, column, **kwargs):
         colspec = self.preparer.format_column(column)
@@ -176,7 +199,7 @@ class DremioDialect_flight(default.DefaultDialect):
         def add_property(lc_query_dict, property_name, connectors):
             if property_name.lower() in lc_query_dict:
                 connectors.append('{0}={1}'.format(property_name, lc_query_dict[property_name.lower()]))
-        
+
         add_property(lc_query_dict, 'UseEncryption', connectors)
         add_property(lc_query_dict, 'DisableCertificateVerification', connectors)
         add_property(lc_query_dict, 'TrustedCerts', connectors)
@@ -255,4 +278,3 @@ class DremioDialect_flight(default.DefaultDialect):
 
     def get_view_names(self, connection, schema=None, **kwargs):
         return []
-        

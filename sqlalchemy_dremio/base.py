@@ -34,7 +34,7 @@ _type_map = {
     'smallint': types.SMALLINT,
     'CHARACTER VARYING': types.VARCHAR,
     'ANY': types.VARCHAR,
-    
+
     'ARRAY': types.ARRAY,
     'ROW': types.JSON,
     'BINARY VARYING': types.LargeBinary,
@@ -65,6 +65,28 @@ class DremioCompiler(compiler.SQLCompiler):
 
     def visit_tablesample(self, tablesample, asfrom=False, **kw):
         print(tablesample)
+
+    def visit_function(self, func, **kw):
+        # SQLAlchemy stores function names in uppercase inside the object
+        name = func.name.upper()
+
+        if name == 'DATEDIFF':
+            clauses = list(func.clauses)
+            if len(clauses) == 2:
+                # Force DATE_SUB(date, days)
+                return "DATE_SUB(%s, %s)" % (
+                    self.process(clauses[0], **kw),
+                    self.process(clauses[1], **kw)
+                )
+
+        if name == 'DATE_ADD':
+            clauses = list(func.clauses)
+            return "DATE_ADD(%s, %s)" % (
+                self.process(clauses[0], **kw),
+                self.process(clauses[1], **kw)
+            )
+
+        return super().visit_function(func, **kw)
 
 
 class DremioDDLCompiler(compiler.DDLCompiler):
