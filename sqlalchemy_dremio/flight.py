@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import schema, types, pool
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.sql import compiler
@@ -48,7 +50,7 @@ class DremioCompiler(compiler.SQLCompiler):
     def visit_table(self, table, asfrom=False, **kwargs):
 
         # Debug log
-        print('Visiting table:', table)
+        logging.error('Visiting table:', table)
 
         if asfrom:
             if table.schema is not None and table.schema != "":
@@ -68,7 +70,7 @@ class DremioCompiler(compiler.SQLCompiler):
         name = func.name.upper()
 
         # Debug log
-        print('Visiting function:', name)
+        logging.error('Visiting function:', name)
 
         if name == 'DATEDIFF':
             clauses = list(func.clauses)
